@@ -1,0 +1,102 @@
+---
+# Source: espresso-product/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-shop-product-sa
+  labels:
+    helm.sh/chart: espresso-product-0.1.0
+    app.kubernetes.io/name: espresso-product
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: espresso-product/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: espresso-shop-product-catalog-svc
+  labels:
+    helm.sh/chart: espresso-product-0.1.0
+    app.kubernetes.io/name: espresso-product
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 8091
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    version: v1
+    app: espresso
+---
+# Source: espresso-product/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: RELEASE-NAME-espresso-product
+  labels:
+    helm.sh/chart: espresso-product-0.1.0
+    app.kubernetes.io/name: espresso-product
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+     version: v1
+     app: espresso
+  template:
+    metadata:
+      labels:
+        version: v1
+        app: espresso
+    spec:
+      serviceAccountName: espresso-shop-product-sa
+      securityContext:
+        {}
+      containers:
+        - name: espresso-product
+          securityContext:
+            {}
+          image: "deixdevops/espresso-product:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: espresso-product/templates/hpa.yaml
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: RELEASE-NAME-espresso-product
+  labels:
+    helm.sh/chart: espresso-product-0.1.0
+    app.kubernetes.io/name: espresso-product
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: RELEASE-NAME-espresso-product
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        targetAverageUtilization: 80

@@ -1,0 +1,101 @@
+---
+# Source: espresso-shop-web/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: espresso-shop-web-sa
+  labels:
+---
+# Source: espresso-shop-web/templates/cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: espresso-web
+data:
+  ProductCatalogUrl: http://espresso-shop-product-catalog-svc:8091
+  ReviewsUrl: http://espresso-shop-reviews-svc:8092
+---
+# Source: espresso-shop-web/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: espresso-web-svc
+  labels:
+    helm.sh/chart: espresso-shop-web-0.1.0
+    app.kubernetes.io/name: espresso-shop-web
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 8090
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    version: v1
+    app: espresso-shop-web
+---
+# Source: espresso-shop-web/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: espresso-web
+  labels:
+    app: espresso-shop-web
+spec:
+  selector:
+    matchLabels:
+      version: v1
+      app: espresso-shop-web
+     
+  template:
+    metadata:   
+      labels:
+        version: v1
+        app: espresso-shop-web
+    spec:
+      serviceAccountName: espresso-shop-web-sa
+      securityContext:
+        {}
+      containers:
+        - name: web
+          securityContext:
+            {}
+          image: "deixdevops/espresso-shop-web:latest"
+          imagePullPolicy: Always
+          envFrom:
+          - configMapRef:
+              name: espresso-web
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+---
+# Source: espresso-shop-web/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: espresso-web-hpa
+  labels:
+    helm.sh/chart: espresso-shop-web-0.1.0
+    app.kubernetes.io/name: espresso-shop-web
+    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: espresso-web
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
